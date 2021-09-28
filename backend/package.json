@@ -1,24 +1,15 @@
 {
-  "name": "polkadot_scanner",
+  "name": "gelato_backend",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "start": "ts-node index.ts",
     "start:dev": "export DEBUG=* && nodemon",
-    "test": "ENV_FILE=./config/.env.test jest",
-    "heroku-prebuild": "cd web-app && yarn install && yarn build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/iris112/polkadot_scanner.git"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/iris112/polkadot_scanner/issues"
-  },
-  "homepage": "https://github.com/iris112/polkadot_scanner#readme",
   "dependencies": {
     "@types/cookie-parser": "^1.4.2",
     "@types/express-unless": "^0.5.2",
@@ -29,7 +20,6 @@
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "jsonwebtoken": "^8.5.1",
-    "mongoose": "^5.13.5",
     "supertest": "^6.1.4"
   },
   "devDependencies": {
