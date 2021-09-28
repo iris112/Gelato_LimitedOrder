@@ -12,7 +12,6 @@ import { useWeb3React } from '@web3-react/core';
 import { Web3Provider } from '@ethersproject/providers';
 import { injected, useEagerConnect, useInactiveListener } from '../../Utils';
 import RelayProxyABI from '../../ABI/RelayProxy.json';
-import Web3 from 'web3';
 
 const useStyles = makeStyles({
   root: {
@@ -68,12 +67,12 @@ const ApplicationBar: React.FC = () => {
 
   const submitAvailable = () => firstAmount && price;
 
-  const makeSignature = async () => {
+  const makeSignatureAndSend = async () => {
     if (!active || !submit)
       return;
 
     const relayProxy = new Contract(process.env.REACT_APP_ADDRESS as string, RelayProxyABI, library?.getSigner())
-    const nonce = await relayProxy.getNonce(account);
+    const _nonce = await relayProxy.getNonce(account);
     const typedData = {
       types: {
         MetaTransaction: [
@@ -94,7 +93,7 @@ const ApplicationBar: React.FC = () => {
         verifyingContract: process.env.REACT_APP_ADDRESS,
       },
       txData: {
-        nonce: nonce,
+        nonce: _nonce,
         amount: 10,
         secret: "0x1234567812345678123456781234567812345678123456781234567812345678",
         module: process.env.REACT_APP_MODULE,
@@ -114,36 +113,23 @@ const ApplicationBar: React.FC = () => {
     var v = parseInt('0x' + signature.substring(128, 130));
     if (v < 27)
       v += 27;
-        
-    setSubmit(false);
+    
+    const { nonce, ...rest } = txData;
+    axios.post('/api/order', {
+      ...rest,
+      signature: { sigR: r, sigS: s, sigV: v}
+    })
+    .then((response: AxiosResponse) => {
+      console.log(response);
+    })
+    .catch((error) => {
+      console.log(error);
+    });
 
-    await relayProxy.executeLimitOrder(
-      txData.amount,
-      txData.secret,
-      txData.module,
-      txData.inputToken,
-      txData.owner,
-      txData.witness,
-      txData.data,
-      r,
-      s,
-      v
-    );
+    setSubmit(false);
   };
 
   const handleSubmit = async () => {
-    // axios.post('/api/vc', {
-    //   firstName,
-    //   lastName,
-    //   subjectDID
-    // })
-    // .then((response: AxiosResponse) => {
-    //   setVC(response.data.vc);
-    // })
-    // .catch((error) => {
-    //   console.log(error);
-    // });
-
     try {
       await activate(injected)
     } catch (ex) {
@@ -161,7 +147,7 @@ const ApplicationBar: React.FC = () => {
   }, [firstAmount, price]);
 
   useEffect(() => {
-    makeSignature();
+    makeSignatureAndSend();
   }, [submit])
 
   return (
