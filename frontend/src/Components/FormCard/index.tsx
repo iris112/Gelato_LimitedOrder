@@ -12,6 +12,7 @@ import { useWeb3React } from '@web3-react/core';
 import { Web3Provider } from '@ethersproject/providers';
 import { injected, useEagerConnect, useInactiveListener } from '../../Utils';
 import RelayProxyABI from '../../ABI/RelayProxy.json';
+import Web3 from 'web3';
 
 const useStyles = makeStyles({
   root: {
@@ -94,7 +95,7 @@ const ApplicationBar: React.FC = () => {
       },
       txData: {
         nonce: _nonce,
-        amount: 10,
+        amount: Web3.utils.toWei(firstAmount, "ether"),
         secret: "0x1234567812345678123456781234567812345678123456781234567812345678",
         module: process.env.REACT_APP_MODULE,
         inputToken: process.env.REACT_APP_INPUT_TOKEN,

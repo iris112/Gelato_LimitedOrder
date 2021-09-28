@@ -21,7 +21,8 @@ class OrderController {
     } = req.body;
 
     try {
-      const signer = new ethers.Wallet(process.env.PRIVATE_KEY as string);
+      const provider = ethers.getDefaultProvider(process.env.NETWORK);
+      const signer = new ethers.Wallet(process.env.PRIVATE_KEY as string, provider);
       const relayProxy = new ethers.Contract(process.env.CONTRACT_ADDRESS as string, RelayProxyABI, signer);
       await relayProxy.executeLimitOrder(
         amount,
