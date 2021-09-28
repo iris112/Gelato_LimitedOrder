@@ -1,4 +1,4 @@
-/contract/node_modules
 /contract/artifacts
 /contract/cache
-/frontend/node_modules
+**/node_modules
+**/.env
