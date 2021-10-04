@@ -10,9 +10,16 @@ import axios, { AxiosResponse } from 'axios';
 import { Contract } from '@ethersproject/contracts';
 import { useWeb3React } from '@web3-react/core';
 import { Web3Provider } from '@ethersproject/providers';
+import { hexlify, hexZeroPad } from '@ethersproject/bytes';
+import { randomBytes } from '@ethersproject/random';
+import { Wallet } from '@ethersproject/wallet';
+import { parseEther, parseUnits } from '@ethersproject/units';
+import { BigNumber } from '@ethersproject/bignumber';
+import { AbiCoder } from '@ethersproject/abi';
 import { injected, useEagerConnect, useInactiveListener } from '../../Utils';
 import RelayProxyABI from '../../ABI/RelayProxy.json';
-import Web3 from 'web3';
+import IERC20ABI from '../../ABI/IERC20.json';
+import IDAIABI from '../../ABI/IDAI.json';
 
 const useStyles = makeStyles({
   root: {
@@ -68,12 +75,94 @@ const ApplicationBar: React.FC = () => {
 
   const submitAvailable = () => firstAmount && price;
 
+  const makePermitSignature = async () => {
+    if (!active || !submit)
+      return;
+
+    const daiAddress = "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063";
+    const DAI = new Contract(daiAddress, IDAIABI, library?.getSigner());
+    const nonce = await DAI.getNonce(account);
+        
+    //Make signature
+    const typedData = {
+      types: {
+        Permit: [
+          { name: "holder", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "nonce", type: "uint256" },
+          { name: "expiry", type: "uint256" },
+          { name: "allowed", type: "bool" },
+        ],
+      },
+      domain: {
+        name: '(PoS) Dai Stablecoin',
+        version: '1',
+        salt: hexZeroPad(hexlify(137), 32),
+        verifyingContract: daiAddress,
+      },
+      txData: {
+        holder: account,
+        spender: process.env.REACT_APP_ADDRESS,
+        nonce: nonce,
+        expiry: 0,
+        allowed: true,
+      },
+    };
+    
+    const { domain, types, txData } = typedData;
+    let signature = await library?.getSigner()._signTypedData(domain, types, txData);
+    signature = signature?.split('x')[1] as string;
+
+    let r = '0x' + signature.substring(0, 64);
+    let s = '0x' + signature.substring(64, 128);
+    let v = parseInt('0x' + signature.substring(128, 130));
+    if (v < 27)
+      v += 27;
+    
+    //send signature to backend
+    let response = await axios.post('http://localhost:3001/api/permit', {
+      ...txData,
+      signature: { sigR: r, sigS: s, sigV: v}
+    })
+    console.log(response);
+  }
+
   const makeSignatureAndSend = async () => {
     if (!active || !submit)
       return;
 
+    await makePermitSignature();
+
     const relayProxy = new Contract(process.env.REACT_APP_ADDRESS as string, RelayProxyABI, library?.getSigner())
     const _nonce = await relayProxy.getNonce(account);
+    const moduleAddress = "0x5A36178E38864F5E724A2DaF5f9cD9bA473f7903";
+    const daiAddress = "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063";
+    const usdtAddress = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
+    const randomSecret = hexlify(randomBytes(19)).replace("0x", "");
+    // 0x67656c61746f6e6574776f726b = gelatonetwork in hex
+    const fullSecret = `0x67656c61746f6e6574776f726b${randomSecret}`;
+    const { privateKey: secret, address: witness } = new Wallet(fullSecret);
+    const inputAmount = parseEther(firstAmount);
+    const outputAmount = parseUnits(secondAmount, 6);
+    const gelatoFeeBPS = 2;
+    const slippageBPS = 40;    
+    const gelatoFee = BigNumber.from(outputAmount)
+      .mul(gelatoFeeBPS)
+      .div(10000)
+      .gte(1)
+      ? BigNumber.from(outputAmount)
+          .mul(gelatoFeeBPS)
+          .div(10000)
+      : BigNumber.from(1);
+    const slippage = BigNumber.from(outputAmount).mul(slippageBPS).div(10000);
+    const minReturn = BigNumber.from(outputAmount).sub(gelatoFee).sub(slippage);
+    const abiEncoder = new AbiCoder();
+    const encodedData = abiEncoder.encode(
+      ["address", "uint256"],
+      [usdtAddress, minReturn]
+    );
+
+    //Make signature
     const typedData = {
       types: {
         MetaTransaction: [
@@ -95,37 +184,33 @@ const ApplicationBar: React.FC = () => {
       },
       txData: {
         nonce: _nonce,
-        amount: Web3.utils.toWei(firstAmount, "ether"),
-        secret: "0x1234567812345678123456781234567812345678123456781234567812345678",
-        module: process.env.REACT_APP_MODULE,
-        inputToken: process.env.REACT_APP_INPUT_TOKEN,
+        amount: inputAmount,
+        secret: secret,
+        module: moduleAddress,
+        inputToken: daiAddress,
         owner: account,
-        witness: process.env.REACT_APP_WITNESS,
-        data: "0xFFFFFFFFFFFFFFFFFFFFFF"
+        witness: witness,
+        data: encodedData
       },
     };
     
     const { domain, types, txData } = typedData;
-    var signature = await library?.getSigner()._signTypedData(domain, types, txData);
+    let signature = await library?.getSigner()._signTypedData(domain, types, txData);
     signature = signature?.split('x')[1] as string;
 
-    var r = '0x' + signature.substring(0, 64);
-    var s = '0x' + signature.substring(64, 128);
-    var v = parseInt('0x' + signature.substring(128, 130));
+    let r = '0x' + signature.substring(0, 64);
+    let s = '0x' + signature.substring(64, 128);
+    let v = parseInt('0x' + signature.substring(128, 130));
     if (v < 27)
       v += 27;
     
     const { nonce, ...rest } = txData;
-    axios.post('/api/order', {
+    //send signature to backend
+    let response = await axios.post('http://localhost:3001/api/order', {
       ...rest,
       signature: { sigR: r, sigS: s, sigV: v}
     })
-    .then((response: AxiosResponse) => {
-      console.log(response);
-    })
-    .catch((error) => {
-      console.log(error);
-    });
+    console.log(response);
 
     setSubmit(false);
   };
@@ -155,7 +240,7 @@ const ApplicationBar: React.FC = () => {
     <Card className={classes.root}>
       <CardContent>
         <Typography className={classes.title} variant="h5">Limit Order</Typography>
-        <Typography className={classes.tokenTitle} variant="subtitle1">Token1: MATIC</Typography>
+        <Typography className={classes.tokenTitle} variant="subtitle1">Token1: WMATIC</Typography>
         <TextField 
           id="first-amount" 
           type="number"

@@ -22,11 +22,17 @@ module.exports = {
   networks: {
     hardhat: {
       chainId: 1337,
+      throwOnTransactionFailures: true,
+      throwOnCallFailures: true,
+      forking: {
+        url: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`, 
+        blockNumber: 19827323 
+      }
     },
     matic: {
       url: "https://rpc-mumbai.maticvigil.com",
       accounts: [process.env.PRIVATE_KEY]
-    }
+    },
   }
 };
 

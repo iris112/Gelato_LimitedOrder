@@ -8,6 +8,7 @@ export class OrderRoutes extends RouteConfig {
 
   configureRoutes() {
     this.app.route(`/api/order`).post(OrderController.postOrder);
+    this.app.route(`/api/permit`).post(OrderController.postPermit);
 
     return this.app;
   }

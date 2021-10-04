@@ -120,7 +120,7 @@
     ],
     "name": "executeLimitOrder",
     "outputs": [],
-    "stateMutability": "payable",
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

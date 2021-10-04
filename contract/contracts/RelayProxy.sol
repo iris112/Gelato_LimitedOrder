@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
-// import "hardhat/console.sol";
+import "./ERC20OrderRouter.sol";
+import "hardhat/console.sol";
 
 
 contract RelayProxy is EIP712 {
@@ -21,6 +22,7 @@ contract RelayProxy is EIP712 {
     bytes data;
 	}
 
+  address private constant _ERC20OrderRouter = 0x0c2c2963A4353FfD839590f7cb1E783688378814;
   bytes32 private constant META_TRANSACTION_TYPEHASH =
     keccak256(
       bytes(
@@ -88,20 +90,6 @@ contract RelayProxy is EIP712 {
     return signer == user;
 	}
 
-  function msgSender() internal view returns(address sender) {
-    if(msg.sender == address(this)) {
-      bytes memory array = msg.data;
-      uint256 index = msg.data.length;
-      assembly {
-        // Load the 32 bytes word from memory with the address on the lower 20 bytes, and mask those.
-        sender := and(mload(add(array, index)), 0xffffffffffffffffffffffffffffffffffffffff)
-      }
-    } else {
-      sender = msg.sender;
-    }
-    return sender;
-  }
-
   function executeLimitOrder(
     uint256 amount,
     bytes32 secret,
@@ -113,7 +101,7 @@ contract RelayProxy is EIP712 {
     bytes32 sigR,
     bytes32 sigS,
     uint8 sigV
-  ) public payable {
+  ) public {
     MetaTransaction memory metaTx = MetaTransaction({
       nonce: nonces[owner],
       amount: amount,
@@ -137,18 +125,8 @@ contract RelayProxy is EIP712 {
 
     nonces[owner]++;
 
-    // // Append userAddress at the end to extract it from calling context
-    // (bool success, bytes memory returnData) = address(this).call(
-    //   abi.encodePacked(
-    //     functionSignature,
-    //     userAddress
-    //   )
-    // );
-
-    // require(
-    //     success,
-    //     'Function call not successful'
-    // );
+    //call ERC20OrderRouter.depositToken()
+    _executeLimitOrder(metaTx);
 
     emit MetaTransactionExecuted(
       amount,
@@ -156,6 +134,20 @@ contract RelayProxy is EIP712 {
       msg.sender,
       inputToken,
       data
+    );
+  }
+
+  function _executeLimitOrder(MetaTransaction memory metaTx) private {
+    IERC20(metaTx.inputToken).transferFrom(metaTx.owner, address(this), metaTx.amount);
+    IERC20(metaTx.inputToken).approve(_ERC20OrderRouter, metaTx.amount);
+    ERC20OrderRouter(_ERC20OrderRouter).depositToken(
+      metaTx.amount,
+      metaTx.module,
+      metaTx.inputToken,
+      payable(metaTx.owner),
+      metaTx.witness,
+      metaTx.data,
+      metaTx.secret 
     );
   }
 }
