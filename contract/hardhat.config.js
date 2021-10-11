@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
 require('dotenv').config()
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -30,9 +31,17 @@ module.exports = {
       }
     },
     matic: {
-      url: "https://rpc-mumbai.maticvigil.com",
-      accounts: [process.env.PRIVATE_KEY]
+      url: `https://rpc-mainnet.maticvigil.com/v1/${process.env.MATIC_RPC_KEY}`,
+      accounts: [process.env.PRIVATE_KEY],
+      network_id: 80001,
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      networkCheckTimeout: 100000,
     },
+  },
+  etherscan: {
+    apiKey: process.env.POLYGONSCAN_KEY
   }
 };
 

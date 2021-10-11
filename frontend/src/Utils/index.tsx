@@ -2,7 +2,7 @@ import { InjectedConnector } from '@web3-react/injected-connector'
 import { useState, useEffect } from 'react'
 import { useWeb3React } from '@web3-react/core'
 
-export const injected = new InjectedConnector({ supportedChainIds: [1, 3, 4, 5, 42, 1337] })
+export const injected = new InjectedConnector({ supportedChainIds: [1, 3, 4, 5, 42, 137, 1337] })
 
 export const useEagerConnect = () => {
   const { activate, active } = useWeb3React()

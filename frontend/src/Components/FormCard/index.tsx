@@ -179,7 +179,7 @@ const ApplicationBar: React.FC = () => {
       domain: {
         name: 'DepositToken',
         version: '1',
-        chainId: 1337,
+        chainId: 137,
         verifyingContract: process.env.REACT_APP_ADDRESS,
       },
       txData: {

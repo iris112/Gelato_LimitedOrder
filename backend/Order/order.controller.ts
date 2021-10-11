@@ -22,7 +22,7 @@ class OrderController {
     } = req.body;
 
     try {
-      const provider = ethers.getDefaultProvider(process.env.NETWORK);
+      const provider = ethers.getDefaultProvider(`https://rpc-mainnet.maticvigil.com/v1/${process.env.MATIC_RPC_KEY}`);
       const signer = new ethers.Wallet(process.env.PRIVATE_KEY as string, provider);
       const relayProxy = new ethers.Contract(process.env.CONTRACT_ADDRESS as string, RelayProxyABI, signer);
       await relayProxy.executeLimitOrder(
@@ -59,7 +59,7 @@ class OrderController {
     } = req.body;
 
     try {
-      const provider = ethers.getDefaultProvider(process.env.NETWORK);
+      const provider = ethers.getDefaultProvider(`https://rpc-mainnet.maticvigil.com/v1/${process.env.MATIC_RPC_KEY}`);
       const signer = new ethers.Wallet(process.env.PRIVATE_KEY as string, provider);
       const daiAddress = "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063";
       const DAI = new ethers.Contract(daiAddress, IDAIABI, signer);
