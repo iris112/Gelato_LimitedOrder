@@ -240,7 +240,7 @@ const ApplicationBar: React.FC = () => {
     <Card className={classes.root}>
       <CardContent>
         <Typography className={classes.title} variant="h5">Limit Order</Typography>
-        <Typography className={classes.tokenTitle} variant="subtitle1">Token1: WMATIC</Typography>
+        <Typography className={classes.tokenTitle} variant="subtitle1">Token1: DAI</Typography>
         <TextField 
           id="first-amount" 
           type="number"
