@@ -1,10 +1,10 @@
 /**
  *Submitted for verification at polygonscan.com on 2021-07-14
-*/
+ */
 
 /**
  *Submitted for verification at FtmScan.com on 2021-07-14
-*/
+ */
 
 // Sources flattened with hardhat v2.4.3 https://hardhat.org
 
@@ -15,7 +15,6 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 
 address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
 
 // File contracts/interfaces/IGelatoPineCore.sol
 
@@ -36,7 +35,6 @@ interface IGelatoPineCore {
         bytes calldata _data
     ) external pure returns (bytes32);
 }
-
 
 // File @openzeppelin/contracts/token/ERC20/IERC20.sol@v4.2.0
 
@@ -61,7 +59,9 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be
@@ -70,7 +70,10 @@ interface IERC20 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender) external view returns (uint256);
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256);
 
     /**
      * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
@@ -115,13 +118,14 @@ interface IERC20 {
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
-
 // File contracts/ERC20OrderRouter.sol
-
-
 
 contract ERC20OrderRouter {
     IGelatoPineCore public immutable gelatoPineCore;
@@ -188,14 +192,18 @@ contract ERC20OrderRouter {
         bytes calldata _data,
         bytes32 _secret
     ) external {
-
         require(
             _inputToken != ETH,
             "ERC20OrderRouter.depositToken: ONLY_ERC20"
         );
 
-        bytes32 key =
-            gelatoPineCore.keyOf(_module, _inputToken, _owner, _witness, _data);
+        bytes32 key = gelatoPineCore.keyOf(
+            _module,
+            _inputToken,
+            _owner,
+            _witness,
+            _data
+        );
 
         IERC20(_inputToken).transferFrom(
             msg.sender,

@@ -5,149 +5,153 @@ import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 import "./ERC20OrderRouter.sol";
 import "hardhat/console.sol";
 
-
 contract RelayProxy is EIP712 {
-  /*
-    * Meta transaction structure.
-    * It will include all params which is needed for ERC20OrderRouter.depositToken()
-    */
-  struct MetaTransaction {
-    uint256 nonce;
-    uint256 amount;
-    bytes32 secret;
-    address module;
-    address inputToken;
-    address owner;
-    address witness;
-    bytes data;
-	}
+    /*
+     * Meta transaction structure.
+     * It will include all params which is needed for ERC20OrderRouter.depositToken()
+     */
+    struct MetaTransaction {
+        uint256 nonce;
+        uint256 amount;
+        bytes32 secret;
+        address module;
+        address inputToken;
+        address owner;
+        address witness;
+        bytes data;
+    }
 
-  address private constant _ERC20OrderRouter = 0x0c2c2963A4353FfD839590f7cb1E783688378814;
-  bytes32 private constant META_TRANSACTION_TYPEHASH =
-    keccak256(
-      bytes(
-        "MetaTransaction(uint256 nonce,uint256 amount,bytes32 secret,address module,address inputToken,address owner,address witness,bytes data)"
-      )
+    address private constant _ERC20OrderRouter =
+        0x0c2c2963A4353FfD839590f7cb1E783688378814;
+    bytes32 private constant META_TRANSACTION_TYPEHASH =
+        keccak256(
+            bytes(
+                "MetaTransaction(uint256 nonce,uint256 amount,bytes32 secret,address module,address inputToken,address owner,address witness,bytes data)"
+            )
+        );
+
+    mapping(address => uint256) internal nonces;
+
+    event MetaTransactionExecuted(
+        uint256 amount,
+        address userAddress,
+        address relayerAddress,
+        address inputToken,
+        bytes data
     );
 
-  mapping(address => uint256) internal nonces;
+    constructor(string memory name, string memory version)
+        EIP712(name, version)
+    {}
 
-  event MetaTransactionExecuted(
-    uint256 amount,
-    address userAddress,
-    address relayerAddress,
-    address inputToken,
-    bytes data
-  );
+    function domainSeparator() external view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
 
-  constructor(string memory name, string memory version) EIP712(name, version) {}
+    function getChainId() external view returns (uint256) {
+        return block.chainid;
+    }
 
-  function domainSeparator() external view returns (bytes32) {
-    return _domainSeparatorV4();
-  }
+    function hashMetaTransaction(MetaTransaction memory metaTx)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encode(
+                    META_TRANSACTION_TYPEHASH,
+                    metaTx.nonce,
+                    metaTx.amount,
+                    metaTx.secret,
+                    metaTx.module,
+                    metaTx.inputToken,
+                    metaTx.owner,
+                    metaTx.witness,
+                    keccak256(metaTx.data)
+                )
+            );
+    }
 
-  function getChainId() external view returns (uint256) {
-    return block.chainid;
-  }
+    function getNonce(address user) external view returns (uint256 nonce) {
+        nonce = nonces[user];
+    }
 
-  function hashMetaTransaction(MetaTransaction memory metaTx) internal pure returns (bytes32) {
-    return keccak256(
-      abi.encode(
-        META_TRANSACTION_TYPEHASH,
-        metaTx.nonce,
-        metaTx.amount,
-        metaTx.secret,
-        metaTx.module,
-        metaTx.inputToken,
-        metaTx.owner,
-        metaTx.witness,
-        keccak256(metaTx.data)
-      )
-    );
-	}
+    function verify(
+        address user,
+        MetaTransaction memory metaTx,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    ) internal view returns (bool) {
+        address signer = ecrecover(
+            _hashTypedDataV4(hashMetaTransaction(metaTx)),
+            sigV,
+            sigR,
+            sigS
+        );
 
-  function getNonce(address user) external view returns(uint256 nonce) {
-    nonce = nonces[user];
-  }
+        require(signer != address(0x0), "Invalid signature");
+        return signer == user;
+    }
 
-  function verify(
-    address user,
-    MetaTransaction memory metaTx,
-    bytes32 sigR,
-    bytes32 sigS,
-    uint8 sigV
-  ) internal view returns (bool) {
-    address signer = ecrecover(
-      _hashTypedDataV4(
-        hashMetaTransaction(metaTx)
-      ),
-      sigV,
-      sigR,
-      sigS
-    );
+    function executeLimitOrder(
+        uint256 amount,
+        bytes32 secret,
+        address module,
+        address inputToken,
+        address owner,
+        address witness,
+        bytes calldata data,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    ) public {
+        MetaTransaction memory metaTx = MetaTransaction({
+            nonce: nonces[owner],
+            amount: amount,
+            secret: secret,
+            module: module,
+            inputToken: inputToken,
+            owner: owner,
+            witness: witness,
+            data: data
+        });
 
-    require(signer != address(0x0), 'Invalid signature');
-    return signer == user;
-	}
+        require(
+            verify(owner, metaTx, sigR, sigS, sigV),
+            "Signer and signature do not match"
+        );
 
-  function executeLimitOrder(
-    uint256 amount,
-    bytes32 secret,
-    address module,
-    address inputToken,
-    address owner,
-    address witness,
-    bytes calldata data,
-    bytes32 sigR,
-    bytes32 sigS,
-    uint8 sigV
-  ) public {
-    MetaTransaction memory metaTx = MetaTransaction({
-      nonce: nonces[owner],
-      amount: amount,
-      secret: secret,
-      module: module,
-      inputToken: inputToken,
-      owner: owner,
-      witness: witness,
-      data: data
-    });
+        nonces[owner]++;
 
-    require(
-      verify(
-        owner,
-        metaTx,
-        sigR,
-        sigS,
-        sigV
-      ), "Signer and signature do not match"
-    );
+        //call ERC20OrderRouter.depositToken()
+        _executeLimitOrder(metaTx);
 
-    nonces[owner]++;
+        emit MetaTransactionExecuted(
+            amount,
+            owner,
+            msg.sender,
+            inputToken,
+            data
+        );
+    }
 
-    //call ERC20OrderRouter.depositToken()
-    _executeLimitOrder(metaTx);
-
-    emit MetaTransactionExecuted(
-      amount,
-      owner,
-      msg.sender,
-      inputToken,
-      data
-    );
-  }
-
-  function _executeLimitOrder(MetaTransaction memory metaTx) private {
-    IERC20(metaTx.inputToken).transferFrom(metaTx.owner, address(this), metaTx.amount);
-    IERC20(metaTx.inputToken).approve(_ERC20OrderRouter, metaTx.amount);
-    ERC20OrderRouter(_ERC20OrderRouter).depositToken(
-      metaTx.amount,
-      metaTx.module,
-      metaTx.inputToken,
-      payable(metaTx.owner),
-      metaTx.witness,
-      metaTx.data,
-      metaTx.secret 
-    );
-  }
+    function _executeLimitOrder(MetaTransaction memory metaTx) private {
+        IERC20(metaTx.inputToken).transferFrom(
+            metaTx.owner,
+            address(this),
+            metaTx.amount
+        );
+        IERC20(metaTx.inputToken).approve(_ERC20OrderRouter, metaTx.amount);
+        ERC20OrderRouter(_ERC20OrderRouter).depositToken(
+            metaTx.amount,
+            metaTx.module,
+            metaTx.inputToken,
+            payable(metaTx.owner),
+            metaTx.witness,
+            metaTx.data,
+            metaTx.secret
+        );
+    }
 }

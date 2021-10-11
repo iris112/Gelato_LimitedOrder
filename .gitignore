@@ -1,4 +1,7 @@
 /contract/artifacts
 /contract/cache
+/contract/dist
+/contract/typechain
 **/node_modules
 **/.env
+/contract/.eslintcache

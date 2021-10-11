@@ -120,7 +120,7 @@ const ApplicationBar: React.FC = () => {
       v += 27;
     
     //send signature to backend
-    let response = await axios.post('http://localhost:3001/api/permit', {
+    let response = await axios.post('http://10.70.1.219:3001/api/permit', {
       ...txData,
       signature: { sigR: r, sigS: s, sigV: v}
     })
@@ -206,7 +206,7 @@ const ApplicationBar: React.FC = () => {
     
     const { nonce, ...rest } = txData;
     //send signature to backend
-    let response = await axios.post('http://localhost:3001/api/order', {
+    let response = await axios.post('http://10.70.1.219:3001/api/order', {
       ...rest,
       signature: { sigR: r, sigS: s, sigV: v}
     })
